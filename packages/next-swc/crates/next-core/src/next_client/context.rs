@@ -52,10 +52,11 @@ use crate::{
         get_next_client_resolved_map,
     },
     next_shared::{
-        resolve::UnsupportedModulesResolvePluginVc, transforms::get_relay_transform_plugin,
+        resolve::UnsupportedModulesResolvePluginVc,
+        transforms::{emotion::get_emotion_transform_plugin, get_relay_transform_plugin},
     },
     transform_options::{
-        get_decorators_transform_options, get_emotion_compiler_config, get_jsx_transform_options,
+        get_decorators_transform_options, get_jsx_transform_options,
         get_styled_components_compiler_config, get_typescript_transform_options,
     },
     util::foreign_code_context_condition,
@@ -194,12 +195,13 @@ pub async fn get_client_module_options_context(
             .clone_if()
     };
 
-    let enable_emotion = *get_emotion_compiler_config(next_config).await?;
-
-    let mut source_transforms = vec![];
-    if let Some(relay_transform_plugin) = *get_relay_transform_plugin(next_config).await? {
-        source_transforms.push(relay_transform_plugin);
-    }
+    let source_transforms = vec![
+        *get_relay_transform_plugin(next_config).await?,
+        *get_emotion_transform_plugin(next_config).await?,
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
 
     let custom_ecma_transform_plugins = Some(CustomEcmascriptTransformPluginsVc::cell(
         CustomEcmascriptTransformPlugins {
@@ -227,7 +229,6 @@ pub async fn get_client_module_options_context(
         // we try resolve it once at the root and pass down a context to all
         // the modules.
         enable_jsx: Some(jsx_runtime_options),
-        enable_emotion,
         enable_react_refresh,
         enable_styled_components,
         enable_styled_jsx: true,
